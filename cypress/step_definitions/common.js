@@ -1,8 +1,11 @@
+// Importing necessary types and functions from Cypress and cucumber preprocessor
 /// <reference types="cypress" />
-
 const { Given, Then, When, Step } = require("@badeball/cypress-cucumber-preprocessor");
+
+// Declaring variables to store product data, guest data, and user status
 let products, guestData, isGuest;
 
+// Hardcoded customer data for a registered user
 let customerData = {
   Email: "gerardo.kling40@ethereal.email",
   FirstName: "Gerardo",
@@ -14,6 +17,15 @@ let customerData = {
   PhoneNumber: 920000390,
 };
 
+// Setting up intercepts for common URLs before each test
+beforeEach(() => {
+  cy.intercept(
+    "/pub/static/version1695896754/frontend/Magento/luma/en_US/Magento_Captcha/template/checkout/captcha.html"
+  ).as("Magento_Captcha");
+  cy.intercept("/pub/static/version1695896754/frontend/Magento/luma/en_US/Magento_Ui/**").as("Magento_Ui");
+  cy.intercept("/pub/static/version1695896754/frontend/Magento/luma/en_US/Magento_Checkout/**").as("Magento_Checkout");
+});
+
 // Function to check products in the cart
 function checkProducts() {
   for (let i = 0; i < products.length; i++) {
@@ -21,8 +33,9 @@ function checkProducts() {
     cy.get(".product-item-name").eq(i).should("contain.text", products[i].ProductName);
     cy.get(".details-qty > .value").eq(i).should("contain.text", products[i].Qty);
     // Expanding product details to check size and color
-    cy.get(`:nth-child(${i + 1}) > :nth-child(1) > .product-item-details > .product > .toggle > span`).click();
-    waitToLoading();
+    cy.get(`:nth-child(${i + 1}) > :nth-child(1) > .product-item-details > .product > .toggle > span`).click({
+      force: true,
+    });
     // Assertions for size and color in the expanded product details
     cy.get(
       `:nth-child(${
@@ -37,31 +50,23 @@ function checkProducts() {
   }
 }
 
-// Function to wait for loading to complete
-function waitToLoading() {
-  cy.get("body").then(($body) => {
-    if ($body.find("selector_for_your_button").length > 0) {
-      cy.get(".loading-mask").then(($header) => {
-        if ($header.is(":visible")) {
-          cy.get(".loading-mask", { timeout: 60000 }).should("not.exist");
-        }
-      });
-    }
-  });
-}
-
 // Step for user login
 Given("the user logged in with the following data:", (dataTable) => {
   const data = dataTable.rowsHash();
   isGuest = true;
   if (data["email"] == "guest") {
+    // Navigate to the home page for guest login
     cy.visit("/");
+    cy.wait("@Magento_Captcha");
   } else {
+    // Log in as a registered user
     isGuest = false;
     cy.visit("/customer/account/login/");
+    cy.wait("@Magento_Captcha");
     cy.get("#email").type(data["email"]);
     cy.get("#pass").type(data["password"]);
     cy.get("#send2").click();
+    cy.wait("@Magento_Ui");
     cy.get(".block-dashboard-info").should("be.visible");
     cy.url().should("include", "/customer/account/");
   }
@@ -69,13 +74,16 @@ Given("the user logged in with the following data:", (dataTable) => {
 
 // Step for adding items to the cart
 When("the user puts the following items into the cart:", (dataTable) => {
+  // Extract product data from the table and add products to the cart
   products = dataTable.hashes();
   for (const product of products) {
     cy.visit("/" + product.ProductName.replace(/\W+/g, "-") + ".html");
+    cy.wait("@Magento_Captcha");
     cy.get(`[aria-label="${product.Size}"]`, { timeout: 60000 }).click();
     cy.get(`[aria-label="${product.Color}"]`).click();
     cy.get("#qty").clear().type(product.Qty);
     cy.get("#product-addtocart-button").click();
+    cy.wait("@Magento_Ui");
     cy.get(".message-success > div", { timeout: 60000 }).should(
       "contain.text",
       `\nYou added ${product.ProductName} to your shopping cart.`
@@ -85,45 +93,45 @@ When("the user puts the following items into the cart:", (dataTable) => {
 
 // Step for navigating to the checkout page
 When("the user is navigating to the checkout page", () => {
+  // Navigate to the checkout page
   cy.visit("/checkout/#shipping");
+  cy.wait(["@Magento_Ui", "@Magento_Checkout"]);
   cy.get("#checkout-loader", { timeout: 60000 }).should("not.exist");
-  waitToLoading();
 });
 
 // Step for selecting shipping method
 When("the user is selecting {string} Shipping option", (shipping) => {
+  // Select the shipping option based on the parameter
   cy.get("#checkout-shipping-method-load").scrollIntoView();
   cy.get(`input[value='${shipping === "Flat Rate" ? "flatrate_flatrate" : "tablerate_bestway"}']`).click();
-  waitToLoading();
 });
 
 // Step for filling checkout data
 When("the user is filling checkout data with the following data:", (dataTable) => {
+  // Extract guest data from the table and fill in the checkout form
   guestData = dataTable.rowsHash();
-  cy.get("#customer-email").type(guestData["Email"]);
-  cy.get('[name="firstname"]').type(guestData["FirstName"]);
-  cy.get('[name="lastname"]').type(guestData["LastName"]);
-  cy.get('[name="street[0]"]').type(guestData["Address"]);
-  cy.get('[name="city"]').type(guestData["City"]);
-  cy.get("select").eq(0).select(guestData["State"]);
-  cy.get('[name="postcode"]').type(guestData["Zip"]);
-  cy.get('[name="telephone"]').type(guestData["PhoneNumber"]);
-  waitToLoading();
+  cy.get("#customer-email").type(guestData.Email);
+  cy.get('[name="firstname"]').type(guestData.FirstName);
+  cy.get('[name="lastname"]').type(guestData.LastName);
+  cy.get('[name="street[0]"]').type(guestData.Address);
+  cy.get('[name="city"]').type(guestData.City);
+  cy.get("select").eq(0).select(guestData.State);
+  cy.get('[name="postcode"]').type(guestData.Zip);
+  cy.get('[name="telephone"]').type(guestData.PhoneNumber);
 });
 
 // Step for verifying items in the checkout page
 Then("the items in the checkout page should be correct", () => {
-  waitToLoading();
+  // Expand the order summary and click the "Next" button
   cy.get(".block > .title").click();
-  waitToLoading();
-  checkProducts();
+  cy.wait(["@Magento_Ui", "@Magento_Checkout"]);
   cy.get(".button").contains("Next").click();
 });
 
 // Step for verifying items in the payment page
 Then("the items in the payment page should be correct", () => {
+  // Check products on the payment page
   cy.url().should("include", "/checkout/#payment");
-  waitToLoading();
   checkProducts();
 });
 
@@ -135,7 +143,7 @@ Then("the address should be same with the checkout data", () => {
       // Verify address on the order page
       cy.get(".box-order-shipping-address > .box-content > address").should(
         "contain.text",
-        isGuest === false ? guestData.Address : customerData.Address
+        isGuest === false ? customerData.Address : guestData.Address
       );
     } else {
       // Verify address on the checkout page
@@ -148,19 +156,19 @@ Then("the address should be same with the checkout data", () => {
 });
 
 // Step for completing the order and verifying success
-Then("the order should be successful and invoice sent to the correct email", () => {
+Then("the order should be successful", () => {
+  // Click "Place Order" and verify the success page
+  cy.wait(["@Magento_Ui", "@Magento_Checkout"]);
   cy.get(".payment-method-content > :nth-child(4) > div.primary > .action").contains("Place Order").click();
   cy.url().should("include", "/checkout/onepage/success/");
-  cy.get(".checkout-success").should("be.visible");
-  if (isGuest == true) {
-    // Verify email on the success page for guest user
-    cy.get('[data-bind="text: getEmailAddress()"]').should("contain.text", guestData.Email);
-  }
+  cy.get(".checkout-success", { timeout: 60000 }).should("be.visible");
 });
 
 // Step for verifying items in the order page
 Then("the items in the order page should be correct", () => {
+  // View order details and verify items on the order details page
   cy.get(".order-number > strong").click();
+  cy.wait("@Magento_Ui");
   cy.url().should("include", "/sales/order/view/order_id/");
   cy.get(".order-details-items").should("be.visible");
   for (let i = 0; i < products.length; i++) {

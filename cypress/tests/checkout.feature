@@ -27,7 +27,7 @@ Feature: E-commerce Transaction
     Then the items in the checkout page should be correct
     And the items in the payment page should be correct
     And the address should be same with the checkout data
-    And the order should be successful and invoice sent to the correct email
+    And the order should be successful
 
 
   Scenario: Successful Transaction with logged in to the website (Registered Customer)
@@ -44,7 +44,7 @@ Feature: E-commerce Transaction
     Then the items in the checkout page should be correct
     And the items in the payment page should be correct
     And the address should be same with the checkout data
-    And the order should be successful and invoice sent to the correct email
+    And the order should be successful
     And the items in the order page should be correct
     And the address should be same with the checkout data
 

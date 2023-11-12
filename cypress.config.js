@@ -57,6 +57,7 @@ module.exports = defineConfig({
         return launchOptions;
       }
     });
+    on('file:preprocessor', webpackPreprocessor);
     allureWriter(on, config);
     return config;
   },
