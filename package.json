@@ -7,7 +7,7 @@
     "test:all": "cypress run --headless --browser chrome --spec \"**/*.feature\" allure=true",
     "allure:report": "allure generate ./allure-results -o ./allure-report",
     "allure:open": "allure open ./allure-report",
-    "allure:clear": "rm -r allure-results/ allure-report cypress/screenshots || true"
+    "allure:clear": "rm -r allure-results/ allure-report cypress/screenshots cypress/videos || true"
   },
   "keywords": [],
   "author": "",
