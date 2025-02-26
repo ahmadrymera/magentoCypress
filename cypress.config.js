@@ -2,12 +2,11 @@ const { defineConfig } = require("cypress");
 const createBundler = require("@bahmutov/cypress-esbuild-preprocessor");
 const preprocessor = require("@badeball/cypress-cucumber-preprocessor");
 const createEsbuildPlugin = require("@badeball/cypress-cucumber-preprocessor/esbuild");
-const allureWriter = require("@shelex/cypress-allure-plugin/writer");
+const { allureCypress } = require("allure-cypress/reporter");
 const fs = require("fs");
 
 async function setupNodeEvents(on, config) {
-  // Prepare for Cypress cucumber preprocessor
-  // See: https://github.com/badeball/cypress-cucumber-preprocessor/blob/master/examples/esbuild-cjs/cypress.config.js
+  // Setup Cucumber Preprocessor
   await preprocessor.addCucumberPreprocessorPlugin(on, config);
   on(
     "file:preprocessor",
@@ -16,18 +15,27 @@ async function setupNodeEvents(on, config) {
     })
   );
 
-  allureWriter(on, config);
-  // Delete videos when there's no error so we don't need to compress and upload them.
-  // See: https://docs.cypress.io/api/plugins/after-spec-api#Delete-the-recorded-video-if-the-spec-passed
+  // Setup Allure Reporter
+  allureCypress(on, config);
+
+  // Remove video if not failure
   on("after:spec", (spec, results) => {
-    // Do we have failures?
     if (results && results.video && results.stats.failures === 0) {
-      // delete the video if the spec passed
       fs.unlinkSync(results.video);
     }
   });
 
-  // Make sure to return the config object as it might have been modified by the plugin.
+  // Fullscreen browser
+  on("before:browser:launch", (browser = {}, launchOptions) => {
+    if (browser.family === "chromium" && browser.name !== "electron") {
+      launchOptions.args.push("--start-fullscreen");
+    }
+    if (browser.name === "electron") {
+      launchOptions.preferences.fullscreen = true;
+    }
+    return launchOptions;
+  });
+
   return config;
 }
 
@@ -38,28 +46,13 @@ module.exports = defineConfig({
     trashAssetsBeforeRuns: true,
     supportFile: "cypress/support/e2e.js",
     specPattern: "cypress/tests/**/*.feature",
-    setupNodeEvents,
-    allure: true,
     viewportWidth: 1920,
-    viewportHeight: 1080
+    viewportHeight: 1080,
+    env: {
+      allure: true,
+      allureResultsPath: "allure-results",
+      allureReuseAfterSpec: true,
+    },
+    setupNodeEvents,
   },
-  setupNodeEvents(on, config) {
-    on("before:browser:launch", (browser = {}, launchOptions) => {
-      if (browser.family === "chromium" && browser.name !== "electron") {
-        launchOptions.args.push("--start-fullscreen");
-
-        return launchOptions;
-      }
-
-      if (browser.name === "electron") {
-        launchOptions.preferences.fullscreen = true;
-
-        return launchOptions;
-      }
-    });
-    on('file:preprocessor', webpackPreprocessor);
-    allureWriter(on, config);
-    return config;
-  },
-  
 });

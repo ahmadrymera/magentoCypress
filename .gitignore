@@ -129,9 +129,10 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-# allure report
+# Allure report and results
 allure-report/
+allure-results/
 
-# screenshot and videos folder
-screenshots
-videos
+# Cypress screenshots and videos
+cypress/screenshots/
+cypress/videos/

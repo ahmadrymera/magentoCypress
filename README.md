@@ -37,8 +37,8 @@ Use the following npm scripts to execute tests and generate Allure reports:
 npx cypress open        # Open Cypress GUI
 npm run test:all       # Run all tests in headless mode using Chrome browser
 npm run allure:report   # Generate Allure report
+npm run allure:open   # Generate Allure report
 npm run allure:clear    # Clear previous Allure results and screenshots
-npm run allure:history  # Move Allure report history to the correct directory
 ```
 
 ## Test Structure
